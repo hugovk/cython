@@ -73,6 +73,9 @@ matrix:
     - python: 3.8-dev
       dist: xenial    # Required for Python 3.8
       env: LIMITED_API=--limited-api EXCLUDE=--no-file
+    - python: 3.9-dev
+      dist: xenial    # Required for Python 3.9
+      env: LIMITED_API=--limited-api EXCLUDE=--no-file
     - os: osx
       osx_image: xcode6.4
       env: PY=2
