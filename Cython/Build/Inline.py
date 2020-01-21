@@ -1,7 +1,7 @@
 from __future__ import absolute_import
 
 import sys, os, re, inspect
-import imp
+import importlib.util
 
 import hashlib
 from distutils.core import Distribution, Extension
@@ -31,6 +31,13 @@ if sys.version_info[0] < 3:
             return s
 else:
     to_unicode = lambda x: x
+
+
+def load_dynamic(module, path):
+    spec = importlib.util.spec_from_file_location(module, path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
 
 
 class UnboundSymbols(EnvTransform, SkipDeclarations):
@@ -246,7 +253,7 @@ def __invoke(%(params)s):
             build_extension.build_lib  = lib_dir
             build_extension.run()
 
-        module = imp.load_dynamic(module_name, module_path)
+        module = load_dynamic(module_name, module_path)
 
     _cython_inline_cache[orig_code, arg_sigs] = module.__invoke
     arg_list = [kwds[arg] for arg in arg_names]
