@@ -294,10 +294,6 @@ def update_openmp_extension(ext):
     ext.openmp = True
     language = ext.language
 
-    if sys.platform == 'win32' and sys.version_info[:2] == (3,4):
-        # OpenMP tests fail in appveyor in Py3.4 -> just ignore them, EoL of Py3.4 is early 2019...
-        return EXCLUDE_EXT
-
     if language == 'cpp':
         flags = OPENMP_CPP_COMPILER_FLAGS
     else:
@@ -340,10 +336,6 @@ def update_cpp_extension(cpp_std, min_gcc_version=None, min_clang_version=None, 
         # check for a usable gcc version
         gcc_version = get_gcc_version(ext.language)
         if gcc_version:
-            if cpp_std >= 17 and sys.version_info[0] < 3:
-                # The Python 2.7 headers contain the 'register' modifier
-                # which gcc warns about in C++17 mode.
-                ext.extra_compile_args.append('-Wno-register')
             if not already_has_std:
                 compiler_version = gcc_version.group(1)
                 if not min_gcc_version or float(compiler_version) >= float(min_gcc_version):
@@ -356,10 +348,6 @@ def update_cpp_extension(cpp_std, min_gcc_version=None, min_clang_version=None, 
         # check for a usable clang version
         clang_version = get_clang_version(ext.language)
         if clang_version:
-            if cpp_std >= 17 and sys.version_info[0] < 3:
-                # The Python 2.7 headers contain the 'register' modifier
-                # which clang warns about in C++17 mode.
-                ext.extra_compile_args.append('-Wno-register')
             if not already_has_std:
                 compiler_version = clang_version.group(1)
                 if not min_clang_version or float(compiler_version) >= float(min_clang_version):
@@ -743,8 +731,8 @@ class TestBuilder(object):
                 suite.addTest(
                     self.handle_directory(path, filename))
         if (sys.platform not in ['win32'] and self.add_embedded_test
-                # the embedding test is currently broken in Py3.8+ and Py2.7, except on Linux.
-                and ((3, 0) <= sys.version_info < (3, 8) or sys.platform != 'darwin')
+                # the embedding test is currently broken in macOS
+                and sys.platform != 'darwin'
                 # broken on graal too
                 and not IS_GRAAL):
             # Non-Windows makefile.
@@ -1557,82 +1545,6 @@ class CythonRunTestCase(CythonCompileTestCase):
                 filter_test_suite(tests, self.test_selector)
             with self.stats.time(self.name, self.language, 'run'):
                 tests.run(result)
-        run_forked_test(result, run_test, self.shortDescription(), self.fork)
-
-
-def run_forked_test(result, run_func, test_name, fork=True):
-    if not fork or sys.version_info[0] >= 3 or not hasattr(os, 'fork'):
-        run_func(result)
-        sys.stdout.flush()
-        sys.stderr.flush()
-        gc.collect()
-        return
-
-    # fork to make sure we do not keep the tested module loaded
-    result_handle, result_file = tempfile.mkstemp()
-    os.close(result_handle)
-    child_id = os.fork()
-    if not child_id:
-        result_code = 0
-        try:
-            try:
-                tests = partial_result = None
-                try:
-                    partial_result = PartialTestResult(result)
-                    run_func(partial_result)
-                    sys.stdout.flush()
-                    sys.stderr.flush()
-                    gc.collect()
-                except Exception:
-                    result_code = 1
-                    if partial_result is not None:
-                        if tests is None:
-                            # importing failed, try to fake a test class
-                            tests = _FakeClass(
-                                failureException=sys.exc_info()[1],
-                                _shortDescription=test_name,
-                                module_name=None)
-                        partial_result.addError(tests, sys.exc_info())
-                if partial_result is not None:
-                    with open(result_file, 'wb') as output:
-                        pickle.dump(partial_result.data(), output)
-            except:
-                traceback.print_exc()
-        finally:
-            try: sys.stderr.flush()
-            except: pass
-            try: sys.stdout.flush()
-            except: pass
-            os._exit(result_code)
-
-    try:
-        cid, result_code = os.waitpid(child_id, 0)
-        module_name = test_name.split()[-1]
-        # os.waitpid returns the child's result code in the
-        # upper byte of result_code, and the signal it was
-        # killed by in the lower byte
-        if result_code & 255:
-            raise Exception(
-                "Tests in module '%s' were unexpectedly killed by signal %d, see test output for details." % (
-                    module_name, result_code & 255))
-        result_code >>= 8
-        if result_code in (0,1):
-            try:
-                with open(result_file, 'rb') as f:
-                    PartialTestResult.join_results(result, pickle.load(f))
-            except Exception:
-                raise Exception(
-                    "Failed to load test result from test in module '%s' after exit status %d,"
-                    " see test output for details." % (module_name, result_code))
-        if result_code:
-            raise Exception(
-                "Tests in module '%s' exited with status %d, see test output for details." % (
-                    module_name, result_code))
-    finally:
-        try:
-            os.unlink(result_file)
-        except:
-            pass
 
 
 class PureDoctestTestCase(unittest.TestCase):
@@ -1830,8 +1742,6 @@ class CythonPyregrTestCase(CythonRunTestCase):
                     result.addSkip(self, 'ok')
             finally:
                 support.run_unittest, support.run_doctest = backup
-
-        run_forked_test(result, run_test, self.shortDescription(), self.fork)
 
 
 class TestCodeFormat(unittest.TestCase):

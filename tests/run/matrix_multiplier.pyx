@@ -1,8 +1,5 @@
 
-import sys
-
-if sys.version_info >= (3, 5):
-    __doc__ = """\
+__doc__ = """\
 Note: support for providing Python special methods despite missing the C-level slot
 is currently not supported.
 

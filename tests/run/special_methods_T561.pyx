@@ -21,8 +21,6 @@
 #
 # Additional tests added for 2 and 3 argument pow and ipow
 
-import sys
-
 from cpython.number cimport PyNumber_InPlacePower
 
 __doc__ = u"""
@@ -102,8 +100,7 @@ cdef extern from *:
     # type specs require a bug fix in Py3.8+ for some of these tests.
     const int CYTHON_USE_TYPE_SPECS
 
-if not CYTHON_USE_TYPE_SPECS or sys.version_info >= (3,8):
-    __doc__ += u"""
+__doc__ += u"""
     >>> # If you define either setattr or delattr, you get wrapper objects
     >>> # for both methods.  (This behavior is unchanged by #561.)
     >>> sa_setattr = SetAttr().__setattr__
@@ -1077,9 +1074,7 @@ cdef class TwoArgIPow:
     def __ipow__(self, other):
         return f"{self.name}**{other}"
 
-if sys.version_info >= (3, 8):
-    # Due to a bug this check can't usefully work in Python <3.8
-    __doc__ += """
+__doc__ += """
 >>> ipow(TwoArgIPow('a'), 'x', 'y')
 Traceback (most recent call last):
     ...

@@ -234,7 +234,7 @@ if compile_cython_itself:
     if cython_limited_api and False:
         setup_options = setup_args.setdefault('options', {})
         bdist_wheel_options = setup_options.setdefault('bdist_wheel', {})
-        bdist_wheel_options['py_limited_api'] = 'cp37'
+        bdist_wheel_options['py_limited_api'] = 'cp38'
 
 
 setup_args.update(setuptools_extra_args)
@@ -319,7 +319,6 @@ def run_build():
             "Operating System :: OS Independent",
             "Programming Language :: Python",
             "Programming Language :: Python :: 3",
-            "Programming Language :: Python :: 3.7",
             "Programming Language :: Python :: 3.8",
             "Programming Language :: Python :: 3.9",
             "Programming Language :: Python :: 3.10",
