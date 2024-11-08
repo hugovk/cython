@@ -317,41 +317,11 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
 // Unlike the Py_TRASHCAN_SAFE_BEGIN/Py_TRASHCAN_SAFE_END macros, they
 // allow dealing correctly with subclasses.
 
-#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x03080000
+#if CYTHON_COMPILING_IN_CPYTHON
 // https://github.com/python/cpython/pull/11841 merged so Cython reimplementation
 // is no longer necessary
 #define __Pyx_TRASHCAN_BEGIN Py_TRASHCAN_BEGIN
 #define __Pyx_TRASHCAN_END Py_TRASHCAN_END
-
-#elif CYTHON_COMPILING_IN_CPYTHON
-
-#define __Pyx_TRASHCAN_BEGIN_CONDITION(op, cond) \
-    do { \
-        PyThreadState *_tstate = NULL; \
-        // If "cond" is false, then _tstate remains NULL and the deallocator
-        // is run normally without involving the trashcan
-        if (cond) { \
-            _tstate = PyThreadState_GET(); \
-            if (_tstate->trash_delete_nesting >= PyTrash_UNWIND_LEVEL) { \
-                // Store the object (to be deallocated later) and jump past
-                // Py_TRASHCAN_END, skipping the body of the deallocator
-                _PyTrash_thread_deposit_object((PyObject*)(op)); \
-                break; \
-            } \
-            ++_tstate->trash_delete_nesting; \
-        }
-        // The body of the deallocator is here.
-#define __Pyx_TRASHCAN_END \
-        if (_tstate) { \
-            --_tstate->trash_delete_nesting; \
-            if (_tstate->trash_delete_later && _tstate->trash_delete_nesting <= 0) \
-                _PyTrash_thread_destroy_chain(); \
-        } \
-    } while (0);
-
-#define __Pyx_TRASHCAN_BEGIN(op, dealloc) __Pyx_TRASHCAN_BEGIN_CONDITION(op, \
-        __Pyx_PyObject_GetSlot(op, tp_dealloc, destructor) == (destructor)(dealloc))
-
 #else
 // The trashcan is a no-op on other Python implementations
 // or old CPython versions
